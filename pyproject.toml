@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "text-adventure-engine"
-version = "0.1.0"
+version = "0.2.0"
 description = "SQLite-backed text adventure engine for AI agents"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,9 @@ ta-import = "engine.cli_scripts:import_cmd"
 ta-context = "engine.cli_scripts:context_cmd"
 ta-new-session = "engine.cli_scripts:new_session_cmd"
 ta-session = "engine.cli_scripts:session_cmd"
+ta-draft = "engine.cli_scripts:draft_cmd"
+ta-apply-patch = "engine.cli_scripts:apply_patch_cmd"
+ta-roll = "engine.cli_scripts:roll_cmd"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/engine"]

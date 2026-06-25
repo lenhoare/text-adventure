@@ -123,3 +123,19 @@ def new_session_cmd() -> None:
 
 def session_cmd() -> None:
     _run_command("session")
+
+
+def draft_cmd() -> None:
+    _run_command("draft", usage="ta-draft [--world ID] <subcommand> ...")
+
+
+def apply_patch_cmd() -> None:
+    _run_command(
+        "apply-patch",
+        require_args=True,
+        usage="ta-apply-patch [--world ID] <patch.json>",
+    )
+
+
+def roll_cmd() -> None:
+    _run_command("roll", usage="ta-roll [--world ID] <subcommand> ...")

@@ -132,3 +132,4 @@ class AgentContext(BaseModel):
     recent_events: list[dict[str, Any]]
     available_actions: list[dict[str, Any]]
     candidate_actions: list[dict[str, Any]] = Field(default_factory=list)
+    active_drafts: list[dict[str, Any]] = Field(default_factory=list)

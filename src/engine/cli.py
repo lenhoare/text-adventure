@@ -8,7 +8,18 @@ import click
 from engine.actions import play
 from engine.context import build_agent_context, render_map
 from engine.db import connect, default_db_path, init_db
+from engine.drafts import (
+    commit_draft,
+    create_draft_from_file,
+    create_draft_from_last_narration,
+    get_draft,
+    list_drafts,
+    reject_draft,
+    revise_draft,
+)
 from engine.events import export_events_jsonl
+from engine.patches import PatchValidationError, apply_patch
+from engine.rng import choose_table, draw_deck, flip_coin, roll_dice
 from engine.save_load import save_game
 from engine.session import create_session, get_active_session, list_saves, load_session
 from engine.world_io import export_world, import_world
@@ -242,3 +253,180 @@ def events_cmd(ctx: click.Context, output: Path | None) -> None:
         click.echo(f"Wrote events to {output}")
     else:
         click.echo(text, nl=False)
+
+
+@main.group("draft")
+@click.pass_context
+def draft_group(ctx: click.Context) -> None:
+    """Manage world drafts."""
+
+
+@draft_group.command("add")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.pass_context
+def draft_add_cmd(ctx: click.Context, path: Path) -> None:
+    """Create a draft from a JSON file."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    save = get_active_session(conn, world_id)
+    draft = create_draft_from_file(
+        conn, world_id, path, save_id=save.id if save else None
+    )
+    click.echo(json.dumps(draft, indent=2, default=str))
+
+
+@draft_group.command("from-narration")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.pass_context
+def draft_from_narration_cmd(ctx: click.Context, path: Path) -> None:
+    """Create a draft using the last LLM narration as source text."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    save = get_active_session(conn, world_id)
+    draft = create_draft_from_last_narration(
+        conn, world_id, path, save_id=save.id if save else None
+    )
+    click.echo(json.dumps(draft, indent=2, default=str))
+
+
+@draft_group.command("list")
+@click.option("--all-statuses", is_flag=True, help="Include non-active drafts")
+@click.pass_context
+def draft_list_cmd(ctx: click.Context, all_statuses: bool) -> None:
+    """List drafts for the world."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    drafts = list_drafts(conn, world_id, status=None if all_statuses else "active")
+    click.echo(json.dumps(drafts, indent=2, default=str))
+
+
+@draft_group.command("show")
+@click.argument("draft_id")
+@click.pass_context
+def draft_show_cmd(ctx: click.Context, draft_id: str) -> None:
+    """Show a draft by id."""
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    click.echo(json.dumps(get_draft(conn, draft_id), indent=2, default=str))
+
+
+@draft_group.command("revise")
+@click.argument("draft_id")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.pass_context
+def draft_revise_cmd(ctx: click.Context, draft_id: str, path: Path) -> None:
+    """Replace a draft payload from JSON."""
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    draft = revise_draft(conn, draft_id, path)
+    click.echo(json.dumps(draft, indent=2, default=str))
+
+
+@draft_group.command("commit")
+@click.argument("draft_id")
+@click.pass_context
+def draft_commit_cmd(ctx: click.Context, draft_id: str) -> None:
+    """Validate and commit a draft into the world."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    save = get_active_session(conn, world_id)
+    try:
+        result = commit_draft(
+            conn, world_id, draft_id, save_id=save.id if save else None
+        )
+    except PatchValidationError as exc:
+        raise click.ClickException("; ".join(exc.errors)) from exc
+    click.echo(json.dumps(result, indent=2, default=str))
+
+
+@draft_group.command("reject")
+@click.argument("draft_id")
+@click.pass_context
+def draft_reject_cmd(ctx: click.Context, draft_id: str) -> None:
+    """Reject an active draft."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    save = get_active_session(conn, world_id)
+    draft = reject_draft(
+        conn, world_id, draft_id, save_id=save.id if save else None
+    )
+    click.echo(json.dumps(draft, indent=2, default=str))
+
+
+@main.command("apply-patch")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.pass_context
+def apply_patch_cmd(ctx: click.Context, path: Path) -> None:
+    """Validate and apply a patch JSON file."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    save = get_active_session(conn, world_id)
+    data = json.loads(path.read_text())
+    if "patch" in data and "world_id" not in data["patch"]:
+        data["patch"]["world_id"] = world_id
+    try:
+        result = apply_patch(
+            conn, data, save_id=save.id if save else None
+        )
+    except PatchValidationError as exc:
+        raise click.ClickException("; ".join(exc.errors)) from exc
+    click.echo(json.dumps(result, indent=2, default=str))
+
+
+@main.group("roll")
+@click.pass_context
+def roll_group(ctx: click.Context) -> None:
+    """Engine-owned randomness."""
+
+
+@roll_group.command("dice")
+@click.argument("expression")
+@click.option("--reason", default=None)
+@click.pass_context
+def roll_dice_cmd(ctx: click.Context, expression: str, reason: str | None) -> None:
+    """Roll dice, e.g. 1d6+2."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    click.echo(json.dumps(roll_dice(conn, world_id, expression, reason=reason), indent=2))
+
+
+@roll_group.command("coin")
+@click.option("--reason", default=None)
+@click.pass_context
+def roll_coin_cmd(ctx: click.Context, reason: str | None) -> None:
+    """Flip a coin."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    click.echo(json.dumps(flip_coin(conn, world_id, reason=reason), indent=2))
+
+
+@roll_group.command("deck")
+@click.argument("name")
+@click.option("--reason", default=None)
+@click.pass_context
+def roll_deck_cmd(ctx: click.Context, name: str, reason: str | None) -> None:
+    """Draw from a named deck in world metadata."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    click.echo(json.dumps(draw_deck(conn, world_id, name, reason=reason), indent=2))
+
+
+@roll_group.command("table")
+@click.argument("name")
+@click.option("--reason", default=None)
+@click.pass_context
+def roll_table_cmd(ctx: click.Context, name: str, reason: str | None) -> None:
+    """Choose from a weighted table in world metadata."""
+    world_id = _resolve_world(ctx)
+    conn = connect(ctx.obj["db"])
+    init_db(conn)
+    click.echo(json.dumps(choose_table(conn, world_id, name, reason=reason), indent=2))

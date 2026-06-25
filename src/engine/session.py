@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import sqlite3
 from typing import Any
 
@@ -7,6 +8,14 @@ from engine.db import json_dumps, json_loads
 from engine.events import log_event, new_id
 from engine.models import SaveState, SessionSnapshot
 from engine.world_io import find_start_room, load_world_seed
+
+
+def default_rng_state(seed: int | None = None) -> dict[str, Any]:
+    return {
+        "algorithm": "python_random",
+        "seed": seed if seed is not None else random.randint(1, 2**31 - 1),
+        "draw_count": 0,
+    }
 
 
 class SessionError(Exception):
@@ -48,6 +57,7 @@ def create_session(
         inventory=[],
         world_revision=1,
     )
+    rng_state = default_rng_state()
     conn.execute(
         """
         INSERT INTO saves (
@@ -64,7 +74,7 @@ def create_session(
             json_dumps([]),
             json_dumps({}),
             json_dumps({}),
-            json_dumps({}),
+            json_dumps(rng_state),
             snapshot.model_dump_json(),
         ),
     )

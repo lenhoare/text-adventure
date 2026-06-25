@@ -42,23 +42,23 @@ def import_world(conn: sqlite3.Connection, seed_path: Path | str) -> str:
     )
 
     for room in seed.rooms.values():
-        _insert_room(conn, world_id, room)
+        insert_room(conn, world_id, room)
 
     for item in seed.items.values():
-        _insert_item(conn, world_id, item)
+        insert_item(conn, world_id, item)
 
     for npc in seed.npcs.values():
-        _insert_npc(conn, world_id, npc)
+        insert_npc(conn, world_id, npc)
 
     for source_room_id, actions in seed.actions.items():
         for action in actions:
-            _insert_action(conn, world_id, source_room_id, action)
+            insert_action(conn, world_id, source_room_id, action)
 
     conn.commit()
     return world_id
 
 
-def _insert_room(conn: sqlite3.Connection, world_id: str, room: RoomSeed) -> None:
+def insert_room(conn: sqlite3.Connection, world_id: str, room: RoomSeed) -> None:
     conn.execute(
         """
         INSERT INTO rooms (
@@ -80,7 +80,7 @@ def _insert_room(conn: sqlite3.Connection, world_id: str, room: RoomSeed) -> Non
     )
 
 
-def _insert_item(conn: sqlite3.Connection, world_id: str, item: ItemSeed) -> None:
+def insert_item(conn: sqlite3.Connection, world_id: str, item: ItemSeed) -> None:
     conn.execute(
         """
         INSERT INTO items (
@@ -102,7 +102,7 @@ def _insert_item(conn: sqlite3.Connection, world_id: str, item: ItemSeed) -> Non
     )
 
 
-def _insert_npc(conn: sqlite3.Connection, world_id: str, npc: NpcSeed) -> None:
+def insert_npc(conn: sqlite3.Connection, world_id: str, npc: NpcSeed) -> None:
     conn.execute(
         """
         INSERT INTO npcs (
@@ -123,7 +123,7 @@ def _insert_npc(conn: sqlite3.Connection, world_id: str, npc: NpcSeed) -> None:
     )
 
 
-def _insert_action(
+def insert_action(
     conn: sqlite3.Connection,
     world_id: str,
     source_room_id: str,

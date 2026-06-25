@@ -66,7 +66,59 @@ Use `ta context` (or `build_agent_context()` in Python) to fetch current room, v
 - Named save snapshots (load restores; play continues on active session)
 - Append-only event log and transcripts
 
-See `project_spec.md` for the full design and Phase 2+ roadmap.
+## Phase 2 scope
+
+- **Drafts** — propose room/content JSON, revise, commit, or reject
+- **Patches** — validated world mutations (`add_room`, `add_exit`, `update_exit`, `add_item`, flags, `batch_add_region`, etc.)
+- **Blank exits** — committing a room draft updates the existing blank exit in-place (aliases merged)
+- **RNG** — engine-owned dice, coin flips, deck draws, and weighted tables (logged to `random_events`)
+
+### Draft workflow
+
+```bash
+ta --world house_by_sea play "go west" --json          # blank_exit_triggered
+# Agent writes examples/draft_room_from_narration.json
+ta --world house_by_sea draft add examples/draft_room_from_narration.json
+ta --world house_by_sea draft show draft_cold_gallery_001
+ta --world house_by_sea draft commit draft_cold_gallery_001
+ta --world house_by_sea play "go west"
+```
+
+Or apply a patch file directly:
+
+```bash
+ta --world house_by_sea apply-patch examples/commit_patch_example.json
+```
+
+### Randomness
+
+```bash
+ta --world house_by_sea roll dice "1d6+2" --reason "Luck check"
+ta --world house_by_sea roll coin --reason "Which way?"
+```
+
+Decks and tables are read from `world.metadata.decks` and `world.metadata.tables` in the seed JSON.
+
+### New CLI commands
+
+| Command | Description |
+|---|---|
+| `ta draft add <file>` | Create draft from JSON |
+| `ta draft from-narration <file>` | Attach last LLM narration as source text |
+| `ta draft list` | List active drafts |
+| `ta draft show <id>` | Show draft |
+| `ta draft revise <id> <file>` | Replace draft payload |
+| `ta draft commit <id>` | Validate and commit draft to world |
+| `ta draft reject <id>` | Reject draft |
+| `ta apply-patch <file>` | Apply a patch JSON file |
+| `ta roll dice <expr>` | Roll dice (e.g. `2d10+3`) |
+| `ta roll coin` | Flip a coin |
+| `ta roll deck <name>` | Draw from world metadata deck |
+| `ta roll table <name>` | Choose from weighted table |
+
+Agent context (`ta context`) now includes `active_drafts`.
+
+See `project_spec.md` for the full design and Phase 3 roadmap.
 
 ## Files
 

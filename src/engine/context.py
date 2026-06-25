@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from engine.drafts import list_drafts
 from engine.actions import get_items_in_room, get_room_actions
 from engine.db import json_loads
 from engine.events import get_recent_events
@@ -66,6 +67,7 @@ def build_agent_context(
         ),
         available_actions=available_actions,
         candidate_actions=candidate_actions,
+        active_drafts=list_drafts(conn, world_id, status="active"),
     )
 
 

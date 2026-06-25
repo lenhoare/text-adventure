@@ -152,6 +152,32 @@
       "state": {
         "trust": 0,
         "seen_clearly": false
+      },
+      "metadata": {
+        "voice": "Never quite present. Short lines. Avoids certainty.",
+        "role": "Witness, not helper. Knows more than it admits.",
+        "wants": "Warmth, silence, an offered gift.",
+        "wont": "Explain directly; speak in images.",
+        "topics": {
+          "pantry": {
+            "requires": ["flags.pantry_unlocked"],
+            "facts": [
+              "Something still scratches behind the pantry door on cold nights."
+            ],
+            "effects": {
+              "set_flags": { "cat_warned_pantry": true },
+              "set_state": { "trust": 1 }
+            }
+          },
+          "house": {
+            "facts": [
+              "The house settles when it is listening."
+            ],
+            "effects": {
+              "set_state": { "seen_clearly": true }
+            }
+          }
+        }
       }
     }
   }

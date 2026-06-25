@@ -87,6 +87,7 @@ class SessionSnapshot(BaseModel):
     visited_rooms: list[str] = Field(default_factory=list)
     known_rooms: list[str] = Field(default_factory=list)
     revealed_exits: list[str] = Field(default_factory=list)
+    npc_state: dict[str, dict[str, Any]] = Field(default_factory=dict)
     inventory: list[str] = Field(default_factory=list)
     world_revision: int = 1
 
@@ -117,6 +118,7 @@ class PlayResult(BaseModel):
     roll_request: dict[str, Any] | None = None
     candidate_actions: list[dict[str, Any]] = Field(default_factory=list)
     requires_agent: bool = False
+    npc_talk: dict[str, Any] | None = None
 
 
 class AgentContext(BaseModel):

@@ -104,6 +104,88 @@ Many puzzles are expressed as **flags** (has the player heard the house settle? 
 
 Effects can set flags, discover rooms, reveal exits, or move items. The engine applies effects; the agent describes what it felt like.
 
+### Use X on Y
+
+Combine inventory items with things in the room (or NPCs) using commands like:
+
+- `use brass key on pantry`
+- `use rope with hook`
+
+The engine resolves rules in this order:
+
+1. **Explicit rules** on the tool — `properties.use_on.target_id` with optional `requires`, `effects`, and `message`
+2. **Target accepts** — `properties.accepts_use.tool_id` on the thing you use it on
+3. **Keys** — tool `key_for: [target_id]` plus target `locked: true` and `unlock_flag`
+
+If nothing matches, the engine says it cannot be done and the agent can improvise or propose a new rule via a patch.
+
+Example key (automatic):
+
+```json
+"brass_key": { "properties": { "key_for": ["locked_pantry"] } },
+"locked_pantry": { "properties": { "locked": true, "unlock_flag": "pantry_unlocked" } }
+```
+
+Example custom use-on:
+
+```json
+"oil_can": {
+  "properties": {
+    "use_on": {
+      "locked_pantry": {
+        "requires": ["flags.pantry_unlocked"],
+        "effects": { "set_flags": { "pantry_oiled": true } },
+        "message": "You oil the pantry hinges. They stop squeaking."
+      }
+    }
+  }
+}
+```
+
+---
+
+## Talking to NPCs
+
+NPCs have a **description** and **state** (trust, mood, and so on). Authoring metadata gives the agent a **brief** for roleplay — not a script:
+
+- **voice** — how they sound
+- **role** — their function in the story
+- **wants** / **wont** — what motivates or limits them
+
+### Free talk
+
+Commands like `talk to cat`, `speak to the ferryman`, or `ask cat about nothing-in-particular` (any talk without a known topic) are **free conversation**. The engine confirms the NPC is present, logs the attempt, and returns the brief with `requires_agent: true`. The agent writes the actual dialogue and logs it as an LLM transcript.
+
+The engine does not generate lines.
+
+### Topic talk (when the world must change)
+
+Optional **topics** in NPC metadata define canon facts and mechanical effects:
+
+```json
+"topics": {
+  "pantry": {
+    "requires": ["flags.pantry_unlocked"],
+    "facts": ["Something scratches behind the pantry door at night."],
+    "effects": {
+      "set_flags": { "cat_warned_pantry": true },
+      "set_state": { "trust": 1 }
+    }
+  }
+}
+```
+
+When the player asks about a topic (`ask cat about pantry`, `talk to cat about the house`):
+
+1. The engine checks requirements.
+2. Applies effects (flags, discovery, NPC state).
+3. Returns **facts** the agent must respect when speaking.
+4. Sets `requires_agent: true` for the performance.
+
+NPC **state changes are per save** (stored in the session snapshot), so different playthroughs can diverge.
+
+Use **player context** for what the character perceives. Use **author context** to see full topics and hidden facts when designing or running the world.
+
 ---
 
 ## Randomness

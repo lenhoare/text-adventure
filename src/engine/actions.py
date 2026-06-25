@@ -5,6 +5,7 @@ from typing import Any
 
 from engine.db import json_loads
 from engine.events import log_event, log_transcript
+from engine.dialogue import handle_talk, parse_talk_command
 from engine.discovery import (
     apply_gameplay_effects,
     discover_room_on_arrival,
@@ -12,6 +13,7 @@ from engine.discovery import (
 )
 from engine.models import PlayResult, SaveState
 from engine.requires import evaluate_requirements
+from engine.use_on import handle_use_on, parse_use_command
 from engine.session import persist_session
 
 
@@ -193,6 +195,22 @@ def play(
     elif normalized.startswith("drop "):
         target = player_input.split(" ", 1)[1] if " " in player_input else ""
         result = _handle_drop(conn, save, target)
+    elif normalized.startswith("use "):
+        parsed = parse_use_command(player_input)
+        if parsed:
+            tool_text, target_text = parsed
+            result = handle_use_on(conn, save, tool_text, target_text)
+        else:
+            result = PlayResult(
+                ok=False,
+                message='Try: use <item> on <target> (also "with" or "against").',
+                turn=turn,
+                parsed_action="use_on",
+                requires_agent=True,
+            )
+    elif (parsed_talk := parse_talk_command(player_input)) is not None:
+        npc_text, topic_text = parsed_talk
+        result = handle_talk(conn, save, npc_text, topic_text)
     else:
         matched = match_action(player_input, room_actions)
         if matched:

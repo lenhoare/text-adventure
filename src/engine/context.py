@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 from typing import Any, Literal
 
-from engine.drafts import list_drafts
 from engine.actions import get_items_in_room
+from engine.drafts import list_drafts
 from engine.db import json_loads
 from engine.discovery import (
     get_hidden_exits,
@@ -13,6 +13,7 @@ from engine.discovery import (
 )
 from engine.events import get_recent_events
 from engine.models import AgentContext
+from engine.npcs import get_npcs_in_room
 from engine.session import get_active_session
 
 
@@ -41,7 +42,9 @@ def build_agent_context(
     ]
 
     visible_items = get_items_in_room(conn, world_id, save.current_room_id)
-    visible_npcs = _get_npcs_in_room(conn, world_id, save.current_room_id)
+    visible_npcs = get_npcs_in_room(
+        conn, world_id, save.current_room_id, save=save, perspective=perspective
+    )
     inventory_items = [
         item
         for item_id in save.inventory
@@ -193,28 +196,3 @@ def _get_item(
         "properties": json_loads(row["properties_json"], {}),
     }
 
-
-def _get_npcs_in_room(
-    conn: sqlite3.Connection, world_id: str, room_id: str
-) -> list[dict[str, Any]]:
-    rows = conn.execute(
-        """
-        SELECT * FROM npcs
-        WHERE world_id = ? AND location_room_id = ?
-        ORDER BY name
-        """,
-        (world_id, room_id),
-    ).fetchall()
-    npcs: list[dict[str, Any]] = []
-    for row in rows:
-        if row["status"] == "hidden":
-            continue
-        npcs.append(
-            {
-                "id": row["id"],
-                "name": row["name"],
-                "description": row["description"],
-                "state": json_loads(row["state_json"], {}),
-            }
-        )
-    return npcs

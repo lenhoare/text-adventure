@@ -8,6 +8,7 @@ import click
 from engine.actions import play
 from engine.context import build_agent_context, render_map
 from engine.db import connect, default_db_path, init_db
+from engine.doctor import render_doctor_report, run_doctor
 from engine.drafts import (
     commit_draft,
     create_draft_from_file,
@@ -62,6 +63,18 @@ def init_db_cmd(ctx: click.Context) -> None:
     conn = connect(ctx.obj["db"])
     init_db(conn)
     click.echo(f"Initialized database at {ctx.obj['db']}")
+
+
+@main.command("doctor")
+@click.option("--json", "as_json", is_flag=True, help="Emit structured JSON report")
+@click.pass_context
+def doctor_cmd(ctx: click.Context, as_json: bool) -> None:
+    """Check environment, database, worlds, and active sessions."""
+    report = run_doctor(ctx.obj["db"])
+    if as_json:
+        click.echo(json.dumps(report, indent=2))
+    else:
+        click.echo(render_doctor_report(report))
 
 
 @main.command("import")

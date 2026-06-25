@@ -33,6 +33,7 @@ ta-session = "engine.cli_scripts:session_cmd"
 ta-draft = "engine.cli_scripts:draft_cmd"
 ta-apply-patch = "engine.cli_scripts:apply_patch_cmd"
 ta-roll = "engine.cli_scripts:roll_cmd"
+ta-doctor = "engine.cli_scripts:doctor_cmd"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/engine"]

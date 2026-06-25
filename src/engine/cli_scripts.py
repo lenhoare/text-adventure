@@ -139,3 +139,7 @@ def apply_patch_cmd() -> None:
 
 def roll_cmd() -> None:
     _run_command("roll", usage="ta-roll [--world ID] <subcommand> ...")
+
+
+def doctor_cmd() -> None:
+    _run_command("doctor", usage="ta-doctor [--db PATH] [--json]")

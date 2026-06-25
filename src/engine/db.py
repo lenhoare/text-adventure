@@ -6,6 +6,8 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+SCHEMA_VERSION = 1
+
 
 def default_db_path() -> Path:
     return Path.home() / ".text_adventure" / "engine.db"
@@ -23,6 +25,9 @@ def connect(db_path: Path | str | None = None) -> sqlite3.Connection:
 def init_db(conn: sqlite3.Connection) -> None:
     schema = resources.files("engine").joinpath("schema.sql").read_text()
     conn.executescript(schema)
+    current_version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if current_version < SCHEMA_VERSION:
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit()
 
 

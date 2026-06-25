@@ -1,0 +1,10 @@
+{"turn":1,"event_type":"player_input","payload":{"text":"look"}}
+{"turn":1,"event_type":"llm_narration","payload":{"text":"You are standing in a narrow hall smelling faintly of salt and dust."}}
+{"turn":2,"event_type":"player_input","payload":{"text":"take brass key"}}
+{"turn":2,"event_type":"state_change","payload":{"op":"move_item","item_id":"brass_key","from":"hall","to":"inventory"}}
+{"turn":3,"event_type":"player_input","payload":{"text":"look behind the curtain"}}
+{"turn":3,"event_type":"blank_exit_triggered","payload":{"source_room":"hall","action_id":"through_velvet_curtain","generator_hint":"A hidden room or passage west of the hall. It should feel older and colder than the visible house."}}
+{"turn":3,"event_type":"llm_narration","payload":{"text":"Behind the velvet curtain, the boards seem to fall away into a colder space. Portraits line the walls, but their faces have been scraped to pale ovals."}}
+{"turn":4,"event_type":"player_input","payload":{"text":"I like that. Commit it west of the hall."}}
+{"turn":4,"event_type":"draft_created","payload":{"draft_id":"draft_cold_gallery_001","draft_type":"room"}}
+{"turn":4,"event_type":"patch_committed","payload":{"patch_id":"patch_commit_cold_gallery_001","ops":["add_room","add_exit","add_exit","add_item"]}}

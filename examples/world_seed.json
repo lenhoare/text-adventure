@@ -1,0 +1,158 @@
+{
+  "world": {
+    "id": "house_by_sea",
+    "title": "The House by the Sea",
+    "description": "A small seed world for testing an LLM-assisted text adventure engine.",
+    "version": 1,
+    "metadata": {
+      "tone": "quiet coastal uncanny",
+      "default_region": "old_house"
+    }
+  },
+  "rooms": {
+    "hall": {
+      "id": "hall",
+      "name": "Narrow Hall",
+      "region": "old_house",
+      "status": "committed",
+      "description": "A narrow hall smelling faintly of salt, dust, and extinguished coal fires. A threadbare runner leads north. A velvet curtain hangs against the west wall.",
+      "coords": {
+        "region": "old_house",
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "tags": ["interior", "starting_area"],
+      "items": ["brass_key"],
+      "npcs": []
+    },
+    "kitchen": {
+      "id": "kitchen",
+      "name": "Warm Kitchen",
+      "region": "old_house",
+      "status": "committed",
+      "description": "The kitchen is warmer than the rest of the house. Copper pans hang above a cold range. A locked pantry door stands to the east.",
+      "coords": {
+        "region": "old_house",
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "tags": ["interior", "food", "warm"],
+      "items": ["apple", "locked_pantry"],
+      "npcs": ["possible_cat"]
+    }
+  },
+  "actions": {
+    "hall": [
+      {
+        "id": "go_north_to_kitchen",
+        "kind": "movement",
+        "label": "go north to the kitchen",
+        "aliases": ["north", "go north", "kitchen", "enter kitchen"],
+        "target": "kitchen",
+        "status": "committed",
+        "requires": [],
+        "effects": {}
+      },
+      {
+        "id": "through_velvet_curtain",
+        "kind": "movement",
+        "label": "look behind the velvet curtain",
+        "aliases": ["west", "go west", "curtain", "behind curtain", "look behind curtain"],
+        "target": null,
+        "status": "blank",
+        "requires": [],
+        "effects": {},
+        "generator_hint": "A hidden room or passage west of the hall. It should feel older and colder than the visible house."
+      },
+      {
+        "id": "listen_to_house",
+        "kind": "interaction",
+        "label": "listen to the house",
+        "aliases": ["listen", "listen carefully", "listen to house"],
+        "status": "committed",
+        "requires": ["!flags.heard_house_settle"],
+        "effects": {
+          "set_flags": {
+            "heard_house_settle": true
+          }
+        }
+      }
+    ],
+    "kitchen": [
+      {
+        "id": "go_south_to_hall",
+        "kind": "movement",
+        "label": "go south to the hall",
+        "aliases": ["south", "go south", "hall", "return to hall"],
+        "target": "hall",
+        "status": "committed",
+        "requires": [],
+        "effects": {}
+      },
+      {
+        "id": "unlock_pantry",
+        "kind": "interaction",
+        "label": "unlock the pantry with the brass key",
+        "aliases": ["unlock pantry", "use brass key on pantry", "open pantry"],
+        "status": "committed",
+        "requires": ["inventory.brass_key", "!flags.pantry_unlocked"],
+        "effects": {
+          "set_flags": {
+            "pantry_unlocked": true
+          }
+        }
+      }
+    ]
+  },
+  "items": {
+    "brass_key": {
+      "id": "brass_key",
+      "name": "brass key",
+      "description": "Small, cold, and heavier than it looks.",
+      "portable": true,
+      "status": "committed",
+      "location": "hall",
+      "properties": {
+        "key_for": ["locked_pantry"]
+      }
+    },
+    "apple": {
+      "id": "apple",
+      "name": "green apple",
+      "description": "A sharp-smelling green apple sits alone on the kitchen table.",
+      "portable": true,
+      "status": "committed",
+      "location": "kitchen",
+      "properties": {
+        "edible": true
+      }
+    },
+    "locked_pantry": {
+      "id": "locked_pantry",
+      "name": "locked pantry",
+      "description": "A narrow pantry door with a tarnished brass escutcheon.",
+      "portable": false,
+      "status": "committed",
+      "location": "kitchen",
+      "properties": {
+        "locked": true,
+        "unlock_flag": "pantry_unlocked"
+      }
+    }
+  },
+  "npcs": {
+    "possible_cat": {
+      "id": "possible_cat",
+      "name": "possible cat",
+      "description": "A cat-shaped absence beneath the kitchen chair. It may only be a shadow.",
+      "location": "kitchen",
+      "status": "committed",
+      "state": {
+        "trust": 0,
+        "seen_clearly": false
+      }
+    }
+  }
+}

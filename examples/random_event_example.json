@@ -1,0 +1,20 @@
+{
+  "random_event": {
+    "world_id": "house_by_sea",
+    "turn": 15,
+    "random_type": "dice",
+    "expression": "1d6+2",
+    "result": {
+      "rolls": [3],
+      "modifier": 2,
+      "total": 5
+    },
+    "reason": "Check whether the possible cat trusts the player after being offered the apple.",
+    "rng": {
+      "algorithm": "python_random",
+      "seed": 12345,
+      "draw_count_before": 2,
+      "draw_count_after": 3
+    }
+  }
+}

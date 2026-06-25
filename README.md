@@ -1,0 +1,81 @@
+# LLM Text Adventure Engine
+
+SQLite-backed interactive fiction engine for AI agents. The engine owns canonical state; agents (like Hermes) handle narration and propose structured changes.
+
+## Setup
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+## Quick start
+
+```bash
+ta init-db
+ta import examples/world_seed.json
+ta --world house_by_sea new-session
+ta --world house_by_sea play "look"
+ta --world house_by_sea play "take brass key"
+ta --world house_by_sea play "go north"
+ta --world house_by_sea context
+```
+
+Default database path: `~/.text_adventure/engine.db` (override with `--db`).
+
+## CLI commands
+
+| Command | Description |
+|---|---|
+| `ta init-db` | Create or upgrade the SQLite database |
+| `ta import <seed.json>` | Import a world seed |
+| `ta export` | Export world JSON (`-o` to write a file) |
+| `ta --world <id> new-session` | Start a new active session |
+| `ta --world <id> session` | Show active session state |
+| `ta --world <id> list-saves` | List named saves |
+| `ta --world <id> save <name>` | Snapshot current session to a named save |
+| `ta --world <id> load <name>` | Load a named save as the active session |
+| `ta --world <id> play "<input>"` | Apply player input (`--json` for structured result) |
+| `ta --world <id> show-room` | Show current room |
+| `ta --world <id> show-map` | Show known rooms |
+| `ta --world <id> context` | Emit agent context bundle (JSON) |
+| `ta --world <id> events` | Export event log as JSONL |
+
+Standalone script entry points are also available: `ta-play`, `ta-save`, `ta-load`, etc.
+
+## Agent integration
+
+Each `play` result includes structured fields for agent follow-up:
+
+- `parsed_action` / `parsed_action_id` — what the engine understood
+- `requires_agent` — true when the LLM should narrate or interpret further
+- `blank_exit_triggered` / `proposed_draft` — blank exit hit, destination not yet committed
+- `candidate_actions` — partial matches when input could not be resolved
+- `roll_request` — reserved for Phase 2 RNG hooks
+
+Use `ta context` (or `build_agent_context()` in Python) to fetch current room, visible exits/items/NPCs, inventory, flags, recent events, and available actions.
+
+## Phase 1 scope
+
+- SQLite schema with WAL and foreign keys
+- World import/export JSON
+- Room graph, movement, examine/take/drop
+- Formal `requires` DSL (`flags.*`, `inventory.*`, with `!` negation)
+- One active session per world
+- Named save snapshots (load restores; play continues on active session)
+- Append-only event log and transcripts
+
+See `project_spec.md` for the full design and Phase 2+ roadmap.
+
+## Files
+
+- `project_spec.md` — design document
+- `sql/schema.sql` — reference schema (canonical copy in `src/engine/schema.sql`)
+- `examples/` — seed world, save, patch, and event examples
+
+## Tests
+
+```bash
+pytest
+```

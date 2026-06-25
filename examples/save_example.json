@@ -1,0 +1,32 @@
+{
+  "save": {
+    "id": "save_autosave_001",
+    "world_id": "house_by_sea",
+    "name": "Autosave",
+    "current_room_id": "kitchen",
+    "turn": 12,
+    "inventory": ["brass_key"],
+    "flags": {
+      "heard_house_settle": true,
+      "found_cold_gallery": true,
+      "pantry_unlocked": false
+    },
+    "stats": {
+      "health": 10,
+      "luck": 3
+    },
+    "rng": {
+      "algorithm": "python_random",
+      "seed": 12345,
+      "draw_count": 2
+    },
+    "last_event_id": 29,
+    "snapshot": {
+      "location": "kitchen",
+      "visited_rooms": ["hall", "cold_gallery", "kitchen"],
+      "known_rooms": ["hall", "cold_gallery", "kitchen"],
+      "inventory": ["brass_key"],
+      "world_revision": 3
+    }
+  }
+}

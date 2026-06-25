@@ -1,0 +1,73 @@
+{
+  "patch": {
+    "id": "patch_commit_cold_gallery_001",
+    "world_id": "house_by_sea",
+    "author": "llm",
+    "source_turn": 8,
+    "ops": [
+      {
+        "op": "add_room",
+        "room_id": "cold_gallery",
+        "payload": {
+          "name": "Cold Gallery",
+          "region": "old_house",
+          "status": "committed",
+          "description": "A long, unheated gallery hidden behind rotting velvet. The floorboards dip toward the centre, and the portraits here have been scraped to pale ovals.",
+          "coords": {
+            "region": "old_house",
+            "x": -1,
+            "y": 0,
+            "z": 0
+          },
+          "tags": ["interior", "hidden", "unsettling"]
+        }
+      },
+      {
+        "op": "add_exit",
+        "source_room": "hall",
+        "action_id": "go_west_to_cold_gallery",
+        "payload": {
+          "kind": "movement",
+          "label": "go west through the velvet curtain",
+          "aliases": ["west", "go west", "through curtain", "enter gallery"],
+          "target": "cold_gallery",
+          "status": "committed",
+          "requires": [],
+          "effects": {
+            "set_flags": {
+              "found_cold_gallery": true
+            }
+          }
+        }
+      },
+      {
+        "op": "add_exit",
+        "source_room": "cold_gallery",
+        "action_id": "go_east_to_hall",
+        "payload": {
+          "kind": "movement",
+          "label": "go east back through the velvet curtain",
+          "aliases": ["east", "go east", "return", "back", "hall"],
+          "target": "hall",
+          "status": "committed",
+          "requires": [],
+          "effects": {}
+        }
+      },
+      {
+        "op": "add_item",
+        "item_id": "scraped_portraits",
+        "payload": {
+          "name": "scraped portraits",
+          "description": "A row of oil portraits whose faces have been methodically scraped away.",
+          "portable": false,
+          "status": "committed",
+          "location": "cold_gallery",
+          "properties": {
+            "clue": true
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "draft": {
+    "id": "draft_cold_gallery_001",
+    "world_id": "house_by_sea",
+    "draft_type": "room",
+    "status": "active",
+    "created_by": "llm",
+    "source_turn": 7,
+    "source_text": "Behind the velvet curtain, the boards seem to fall away into a colder space. Portraits line the walls, but their faces have been scraped to pale ovals.",
+    "payload": {
+      "room": {
+        "id": "cold_gallery",
+        "name": "Cold Gallery",
+        "region": "old_house",
+        "status": "committed",
+        "description": "A long, unheated gallery hidden behind rotting velvet. The floorboards dip toward the centre, and the portraits here have been scraped to pale ovals.",
+        "coords": {
+          "region": "old_house",
+          "x": -1,
+          "y": 0,
+          "z": 0
+        },
+        "tags": ["interior", "hidden", "unsettling"],
+        "items": ["scraped_portraits"],
+        "npcs": []
+      },
+      "actions": [
+        {
+          "source_room": "hall",
+          "action": {
+            "id": "go_west_to_cold_gallery",
+            "kind": "movement",
+            "label": "go west through the velvet curtain",
+            "aliases": ["west", "go west", "through curtain", "enter gallery"],
+            "target": "cold_gallery",
+            "status": "committed",
+            "requires": [],
+            "effects": {
+              "set_flags": {
+                "found_cold_gallery": true
+              }
+            }
+          }
+        },
+        {
+          "source_room": "cold_gallery",
+          "action": {
+            "id": "go_east_to_hall",
+            "kind": "movement",
+            "label": "go east back through the velvet curtain",
+            "aliases": ["east", "go east", "return", "back", "hall"],
+            "target": "hall",
+            "status": "committed",
+            "requires": [],
+            "effects": {}
+          }
+        }
+      ],
+      "items": {
+        "scraped_portraits": {
+          "id": "scraped_portraits",
+          "name": "scraped portraits",
+          "description": "A row of oil portraits whose faces have been methodically scraped away.",
+          "portable": false,
+          "status": "committed",
+          "location": "cold_gallery",
+          "properties": {
+            "clue": true
+          }
+        }
+      }
+    },
+    "validation_expectations": [
+      "room id must be unique",
+      "source room hall must exist",
+      "return path to hall exists",
+      "item ids must be unique"
+    ]
+  }
+}

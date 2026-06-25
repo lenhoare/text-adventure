@@ -5,8 +5,13 @@ from typing import Any
 
 from engine.db import json_loads
 from engine.events import log_event, log_transcript
+from engine.discovery import (
+    apply_gameplay_effects,
+    discover_room_on_arrival,
+    get_player_room_actions,
+)
 from engine.models import PlayResult, SaveState
-from engine.requires import apply_effects, evaluate_requirements
+from engine.requires import evaluate_requirements
 from engine.session import persist_session
 
 
@@ -172,7 +177,7 @@ def play(
     )
 
     normalized = normalize_input(player_input)
-    room_actions = get_room_actions(conn, world_id, room_id)
+    room_actions = get_player_room_actions(conn, world_id, room_id, save)
     room_items = get_items_in_room(conn, world_id, room_id)
 
     if normalized in {"look", "l"}:
@@ -240,8 +245,10 @@ def _handle_look(
     room = _get_room(conn, save.world_id, save.current_room_id)
     exits = [
         a
-        for a in get_room_actions(conn, save.world_id, save.current_room_id)
-        if a["kind"] == "movement" and a["status"] != "hidden"
+        for a in get_player_room_actions(
+            conn, save.world_id, save.current_room_id, save
+        )
+        if a["kind"] == "movement"
     ]
     lines = [room["description"]]
     if exits:
@@ -295,12 +302,23 @@ def _handle_examine(
             requires_agent=True,
         )
 
+    on_examine = item.get("properties", {}).get("on_examine")
+    changes: list[dict[str, Any]] = []
+    if isinstance(on_examine, dict):
+        changes = apply_gameplay_effects(
+            conn,
+            save,
+            on_examine,
+            default_source_room=save.current_room_id,
+        )
+
     return PlayResult(
         ok=True,
         message=item["description"],
         turn=save.turn,
         parsed_action="examine",
         parsed_action_id=item["id"],
+        state_changes=changes,
     )
 
 
@@ -481,14 +499,17 @@ def _handle_movement(
             requires_agent=True,
         )
 
-    changes = apply_effects(action["effects"], flags=save.flags)
+    changes = apply_gameplay_effects(
+        conn,
+        save,
+        action["effects"],
+        default_source_room=save.current_room_id,
+    )
     from_room = save.current_room_id
     save.current_room_id = action["target"]
     save.snapshot.location = action["target"]
-    if action["target"] not in save.snapshot.visited_rooms:
-        save.snapshot.visited_rooms.append(action["target"])
-    if action["target"] not in save.snapshot.known_rooms:
-        save.snapshot.known_rooms.append(action["target"])
+    discovery_changes = discover_room_on_arrival(conn, save, action["target"])
+    changes.extend(discovery_changes)
 
     log_event(
         conn,
@@ -538,7 +559,12 @@ def _handle_interaction(
             parsed_action_id=action["id"],
         )
 
-    changes = apply_effects(action["effects"], flags=save.flags)
+    changes = apply_gameplay_effects(
+        conn,
+        save,
+        action["effects"],
+        default_source_room=save.current_room_id,
+    )
     log_event(
         conn,
         world_id=save.world_id,

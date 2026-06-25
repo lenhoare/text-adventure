@@ -228,13 +228,21 @@ def show_map_cmd(ctx: click.Context) -> None:
 
 @main.command("context")
 @click.option("--input", "player_input", default=None, help="Include candidate actions for input")
+@click.option(
+    "--author",
+    is_flag=True,
+    help="Include hidden rooms/exits for authoring (spoiler-aware agents)",
+)
 @click.pass_context
-def context_cmd(ctx: click.Context, player_input: str | None) -> None:
+def context_cmd(ctx: click.Context, player_input: str | None, author: bool) -> None:
     """Emit the agent context bundle as JSON."""
     world_id = _resolve_world(ctx)
     conn = connect(ctx.obj["db"])
     init_db(conn)
-    context = build_agent_context(conn, world_id, player_input=player_input)
+    perspective = "author" if author else "player"
+    context = build_agent_context(
+        conn, world_id, player_input=player_input, perspective=perspective
+    )
     click.echo(context.model_dump_json(indent=2))
 
 

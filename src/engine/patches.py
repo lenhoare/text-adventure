@@ -316,15 +316,19 @@ def _validate_batch_add_region(
     conn: sqlite3.Connection, world_id: str, op: dict[str, Any]
 ) -> list[str]:
     payload = op.get("payload", {})
+    default_room_status = payload.get("default_room_status", "committed")
+    default_exit_status = payload.get("default_exit_status", "committed")
     errors: list[str] = []
     pending_rooms: set[str] = set()
     pending_items: set[str] = set()
     for room_id, room_data in payload.get("rooms", {}).items():
+        room_payload = dict(room_data)
+        room_payload.setdefault("status", default_room_status)
         errors.extend(
             _validate_add_room(
                 conn,
                 world_id,
-                {"room_id": room_id, "payload": room_data},
+                {"room_id": room_id, "payload": room_payload},
                 pending_rooms,
             )
         )
@@ -341,6 +345,8 @@ def _validate_batch_add_region(
     for source_room, actions in payload.get("actions", {}).items():
         for action in actions:
             action_id = action.get("id")
+            action_payload = dict(action)
+            action_payload.setdefault("status", default_exit_status)
             errors.extend(
                 _validate_add_exit(
                     conn,
@@ -348,7 +354,7 @@ def _validate_batch_add_region(
                     {
                         "source_room": source_room,
                         "action_id": action_id,
-                        "payload": action,
+                        "payload": action_payload,
                     },
                     pending_rooms,
                 )
@@ -606,14 +612,24 @@ def _apply_batch_add_region(
     conn: sqlite3.Connection, world_id: str, op: dict[str, Any]
 ) -> None:
     payload = op["payload"]
+    default_room_status = payload.get("default_room_status", "committed")
+    default_exit_status = payload.get("default_exit_status", "committed")
+
     for room_id, room_data in payload.get("rooms", {}).items():
-        _apply_add_room(conn, world_id, {"room_id": room_id, "payload": room_data})
+        room_payload = dict(room_data)
+        room_payload.setdefault("status", default_room_status)
+        _apply_add_room(
+            conn, world_id, {"room_id": room_id, "payload": room_payload}
+        )
     for item_id, item_data in payload.get("items", {}).items():
         _apply_add_item(conn, world_id, {"item_id": item_id, "payload": item_data})
     for source_room, actions in payload.get("actions", {}).items():
         for action in actions:
             action_id = action["id"]
-            action_payload = {k: v for k, v in action.items() if k != "id"}
+            action_payload = {
+                k: v for k, v in action.items() if k != "id"
+            }
+            action_payload.setdefault("status", default_exit_status)
             _apply_add_exit(
                 conn,
                 world_id,

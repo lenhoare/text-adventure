@@ -118,7 +118,29 @@ Decks and tables are read from `world.metadata.decks` and `world.metadata.tables
 
 Agent context (`ta context`) now includes `active_drafts`.
 
-See `project_spec.md` for the full design and Phase 3 roadmap.
+## Phase 3: hidden regions
+
+Hidden rooms exist in the canonical world but are filtered from player context until discovered.
+
+**Discovery effects** (in interaction or item `on_examine` effects):
+
+| Effect | What it does |
+|---|---|
+| `discover_rooms` | Adds room names to the map as `[known]` (real names shown before visiting) |
+| `reveal_exits` | Makes hidden exits visible for this save (e.g. `"kitchen:down_to_cellar"`) |
+| `set_flags` | Existing flag gating — hidden exits with `requires` auto-show when met |
+
+**On movement** into a hidden room → engine marks it known + visited and logs `room_discovered`.
+
+```bash
+ta --world house_by_sea apply-patch examples/hidden_region_patch.json
+ta --world house_by_sea context              # player-safe (default)
+ta --world house_by_sea context --author     # includes hidden_rooms + hidden_exits
+```
+
+Use `batch_add_region` with `"default_room_status": "hidden"`. Keep **entry** exits hidden; mark **internal** region exits `"status": "committed"` so movement works once inside.
+
+See `project_spec.md` for the full design and remaining Phase 3 roadmap.
 
 ## Files
 

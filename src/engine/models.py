@@ -86,6 +86,7 @@ class SessionSnapshot(BaseModel):
     location: str
     visited_rooms: list[str] = Field(default_factory=list)
     known_rooms: list[str] = Field(default_factory=list)
+    revealed_exits: list[str] = Field(default_factory=list)
     inventory: list[str] = Field(default_factory=list)
     world_revision: int = 1
 
@@ -119,6 +120,7 @@ class PlayResult(BaseModel):
 
 
 class AgentContext(BaseModel):
+    perspective: Literal["player", "author"] = "player"
     world_id: str
     save_id: str
     turn: int
@@ -129,7 +131,10 @@ class AgentContext(BaseModel):
     inventory: list[dict[str, Any]]
     flags: dict[str, Any]
     stats: dict[str, Any]
+    known_rooms: list[dict[str, Any]] = Field(default_factory=list)
     recent_events: list[dict[str, Any]]
     available_actions: list[dict[str, Any]]
     candidate_actions: list[dict[str, Any]] = Field(default_factory=list)
     active_drafts: list[dict[str, Any]] = Field(default_factory=list)
+    hidden_rooms: list[dict[str, Any]] = Field(default_factory=list)
+    hidden_exits: list[dict[str, Any]] = Field(default_factory=list)

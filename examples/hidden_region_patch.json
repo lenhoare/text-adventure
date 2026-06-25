@@ -1,0 +1,103 @@
+{
+  "patch": {
+    "id": "patch_hidden_cellar_region",
+    "world_id": "house_by_sea",
+    "author": "llm",
+    "source_turn": 0,
+    "ops": [
+      {
+        "op": "batch_add_region",
+        "payload": {
+          "region_id": "cellar_depths",
+          "default_room_status": "hidden",
+          "default_exit_status": "hidden",
+          "rooms": {
+            "cellar_landing": {
+              "name": "Cellar Landing",
+              "region": "cellar_depths",
+              "description": "Stone steps descend into a low cellar smelling of earth and old wine.",
+              "tags": ["interior", "hidden_region"],
+              "coords": {"region": "cellar_depths", "x": 0, "y": 0, "z": -1}
+            },
+            "wine_vault": {
+              "name": "Wine Vault",
+              "region": "cellar_depths",
+              "description": "Racks of empty bottles line the walls. Something scratches behind the far rack.",
+              "tags": ["interior", "hidden_region"],
+              "coords": {"region": "cellar_depths", "x": 1, "y": 0, "z": -1}
+            }
+          },
+          "actions": {
+            "kitchen": [
+              {
+                "id": "down_to_cellar",
+                "kind": "movement",
+                "label": "descend to the cellar",
+                "aliases": ["down", "cellar", "trapdoor", "descend"],
+                "target": "cellar_landing",
+                "requires": ["flags.trapdoor_open"]
+              }
+            ],
+            "cellar_landing": [
+              {
+                "id": "up_to_kitchen",
+                "kind": "movement",
+                "label": "climb back to the kitchen",
+                "aliases": ["up", "kitchen", "return"],
+                "target": "kitchen",
+                "status": "committed"
+              },
+              {
+                "id": "east_to_wine_vault",
+                "kind": "movement",
+                "label": "go east to the wine vault",
+                "aliases": ["east", "wine vault", "vault"],
+                "target": "wine_vault",
+                "status": "committed"
+              }
+            ],
+            "wine_vault": [
+              {
+                "id": "west_to_cellar_landing",
+                "kind": "movement",
+                "label": "go west to the cellar landing",
+                "aliases": ["west", "landing", "back"],
+                "target": "cellar_landing",
+                "status": "committed"
+              }
+            ]
+          },
+          "items": {
+            "floorboard_note": {
+              "name": "note scratched into floorboard",
+              "description": "Faint scratches read: CELLAR LANDING beneath the kitchen boards.",
+              "portable": false,
+              "location": "kitchen",
+              "properties": {
+                "on_examine": {
+                  "discover_rooms": ["cellar_landing"]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "op": "add_exit",
+        "source_room": "kitchen",
+        "action_id": "open_trapdoor",
+        "payload": {
+          "kind": "interaction",
+          "label": "open the trapdoor",
+          "aliases": ["open trapdoor", "pull up floorboard", "lift floorboard"],
+          "status": "committed",
+          "requires": [],
+          "effects": {
+            "set_flags": {"trapdoor_open": true},
+            "reveal_exits": ["kitchen:down_to_cellar"]
+          }
+        }
+      }
+    ]
+  }
+}

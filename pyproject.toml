@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "text-adventure-engine"
-version = "0.2.0"
+version = "0.3.0"
 description = "SQLite-backed text adventure engine for AI agents"
 readme = "README.md"
 requires-python = ">=3.11"

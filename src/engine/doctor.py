@@ -7,7 +7,7 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any
 
-from engine.db import SCHEMA_VERSION, default_db_path
+from engine.db import SCHEMA_VERSION, default_db_path, json_loads
 
 EXAMPLE_WORLD_ID = "house_by_sea"
 EXAMPLE_SEED_NAME = "world_seed.json"
@@ -97,6 +97,54 @@ def _list_tables(conn: sqlite3.Connection) -> set[str]:
     return {row[0] for row in rows}
 
 
+def _item_looks_like_npc(properties: dict[str, Any], metadata: dict[str, Any]) -> bool:
+    if properties.get("npc") is True:
+        return True
+    if metadata.get("npc") is True:
+        return True
+    topics = metadata.get("topics")
+    return isinstance(topics, dict) and bool(topics)
+
+
+def _find_misplaced_npc_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT world_id, id, name, location_room_id, properties_json, metadata_json
+        FROM items
+        ORDER BY world_id, id
+        """
+    ).fetchall()
+    misplaced: list[dict[str, Any]] = []
+    for row in rows:
+        properties = json_loads(row["properties_json"], {})
+        metadata = json_loads(row["metadata_json"], {})
+        if not _item_looks_like_npc(properties, metadata):
+            continue
+        npc_row = conn.execute(
+            "SELECT 1 FROM npcs WHERE world_id = ? AND id = ?",
+            (row["world_id"], row["id"]),
+        ).fetchone()
+        if npc_row:
+            continue
+        reasons: list[str] = []
+        if properties.get("npc") is True:
+            reasons.append("properties.npc is true")
+        if metadata.get("npc") is True:
+            reasons.append("metadata.npc is true")
+        if isinstance(metadata.get("topics"), dict) and metadata["topics"]:
+            reasons.append("metadata.topics present")
+        misplaced.append(
+            {
+                "world_id": row["world_id"],
+                "item_id": row["id"],
+                "name": row["name"],
+                "location": row["location_room_id"],
+                "reasons": reasons,
+            }
+        )
+    return misplaced
+
+
 def _check_database(db_path: Path) -> dict[str, Any]:
     result: dict[str, Any] = {
         "ok": False,
@@ -142,6 +190,7 @@ def _check_database(db_path: Path) -> dict[str, Any]:
             ).fetchall()
         ]
         example_world_loaded = any(world["id"] == EXAMPLE_WORLD_ID for world in worlds)
+        misplaced_npc_items = _find_misplaced_npc_items(conn)
 
         result.update(
             {
@@ -157,6 +206,8 @@ def _check_database(db_path: Path) -> dict[str, Any]:
                 "sessions": sessions,
                 "session_count": len(sessions),
                 "example_world_loaded": example_world_loaded,
+                "misplaced_npc_items": misplaced_npc_items,
+                "misplaced_npc_items_ok": not misplaced_npc_items,
             }
         )
         if actual_version != SCHEMA_VERSION:
@@ -223,6 +274,13 @@ def run_doctor(db_path: Path | None = None) -> dict[str, Any]:
         hints.append(f"Run `ta import {example_seed['path']}`.")
     if database.get("example_world_loaded") and database.get("session_count", 0) == 0:
         hints.append(f"Run `ta --world {EXAMPLE_WORLD_ID} new-session`.")
+    for entry in database.get("misplaced_npc_items", []):
+        hints.append(
+            "Character "
+            f"{entry['item_id']!r} in world {entry['world_id']!r} is an item with "
+            f"{', '.join(entry['reasons'])} but no matching npcs row — use `add_npc` "
+            "instead of `add_item` (see examples/npc_patch_example.json)."
+        )
 
     return {
         "ok": ok,
@@ -294,6 +352,18 @@ def render_doctor_report(report: dict[str, Any]) -> str:
                 )
         else:
             lines.append("sessions: none active")
+
+        misplaced = database.get("misplaced_npc_items", [])
+        if misplaced:
+            lines.append(f"npc-as-item issues ({len(misplaced)}):")
+            for entry in misplaced:
+                lines.append(
+                    "  "
+                    f"{entry['world_id']}/{entry['item_id']} ({entry['name']!r}): "
+                    f"{', '.join(entry['reasons'])}"
+                )
+        elif database.get("misplaced_npc_items_ok"):
+            lines.append("npc-as-item: ok")
 
     for hint in report.get("hints", []):
         lines.append(f"hint: {hint}")

@@ -74,7 +74,7 @@ Good for: “make that corridor real” after narration, or refining a space bef
 
 ### 3. Patches — direct world changes
 
-A **patch** is a list of validated operations: add a room, add an exit, add an item, set a flag, add a whole region at once, and so on. Agents often produce patch JSON; the engine applies it in one go if everything checks out.
+A **patch** is a list of validated operations: add a room, add an exit, add an item, **add an NPC**, set a flag, add a whole region at once, and so on. Agents often produce patch JSON; the engine applies it in one go if everything checks out.
 
 Good for: bulk authoring or precise edits the agent has already structured.
 
@@ -144,7 +144,33 @@ Example custom use-on:
 
 ---
 
-## Talking to NPCs
+## Talking to characters (for players)
+
+When someone is in the room with you — a cat beneath a chair, a bartender behind the counter, a ferryman at the dock — you talk to them with ordinary phrases. You do not pick them up like objects; they are **characters**, separate from keys and clutter on the floor.
+
+**Try:**
+
+- `talk to cat` — start a conversation
+- `speak to the ferryman` — same idea
+- `ask cat about pantry` — ask about something specific
+- `talk to cat about the house` — topic phrasing also works
+
+**What happens:**
+
+1. The engine checks that the character is actually here.
+2. For a general chat, it confirms you spoke to them and hands off to the **narrator** (human or AI) to write what they say. The engine does not generate dialogue lines.
+3. For a **topic** you ask about, the engine may unlock canon facts (“something scratches behind the pantry door”), set story flags, or change how the character feels toward you — then the narrator performs the scene using those facts.
+
+**Tips:**
+
+- Short names often work: `cat` can match `possible cat`.
+- If the engine says you do not see someone here, they are not in the room (or not in the world yet).
+- Topic answers may be gated — e.g. the cat will not discuss the pantry until you have unlocked it elsewhere in the story.
+- Every conversation is logged; the game remembers what was said and what changed.
+
+---
+
+## Talking to NPCs (authoring and agents)
 
 NPCs have a **description** and **state** (trust, mood, and so on). Authoring metadata gives the agent a **brief** for roleplay — not a script:
 
@@ -185,6 +211,8 @@ When the player asks about a topic (`ask cat about pantry`, `talk to cat about t
 NPC **state changes are per save** (stored in the session snapshot), so different playthroughs can diverge.
 
 Use **player context** for what the character perceives. Use **author context** to see full topics and hidden facts when designing or running the world.
+
+**Adding a new character to the world:** use an `add_npc` patch or include them under `"npcs"` in a world seed — not as an item. See README and `examples/npc_patch_example.json`.
 
 ---
 

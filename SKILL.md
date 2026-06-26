@@ -143,7 +143,7 @@ A draft can be shown, revised, committed, or rejected.
 
 ### Patch
 
-A patch is a direct structured world mutation, such as adding a room, adding an exit, adding an item, setting a flag, or batch-adding a hidden region. Patches are validated by the engine.
+A patch is a direct structured world mutation, such as adding a room, adding an exit, adding an item, **adding an NPC**, setting a flag, or batch-adding a hidden region. Patches are validated by the engine.
 
 ### Hidden region
 
@@ -190,7 +190,7 @@ ta-doctor
 
 Use this before setup or play.
 
-### Database initialization
+`ta doctor --json` also flags **misplaced NPCs**: items with `metadata.npc`, `properties.npc`, or dialogue `metadata.topics` but no matching row in the `npcs` table. Follow the hint to apply `add_npc` (see `examples/npc_patch_example.json`).
 
 ```bash
 ta init-db
@@ -493,6 +493,7 @@ Example:
 ```bash
 ta --world house_by_sea apply-patch examples/commit_patch_example.json
 ta --world house_by_sea apply-patch examples/hidden_region_patch.json
+ta --world house_by_sea apply-patch examples/npc_patch_example.json
 ```
 
 Known patch operations include:
@@ -501,7 +502,9 @@ Known patch operations include:
 - `add_exit`
 - `update_exit`
 - `add_item`
-- `set_flag`
+- **`add_npc`**
+- `move_item`
+- `set_flag` / `clear_flag`
 - `batch_add_region`
 
 Agent rules for patches:
@@ -511,6 +514,7 @@ Agent rules for patches:
 3. Keep patch files small and inspectable.
 4. Use hidden-region patterns for generated content that should exist but not yet be spoiled.
 5. After applying a patch, run `context`, `show-room`, or `show-map` to verify the result.
+6. **Use `add_npc` for characters — never `add_item` with `"npc": true`.**
 
 ---
 
@@ -582,7 +586,80 @@ The tool must be in inventory.
 
 ## NPC dialogue workflow
 
-NPC metadata supplies a brief for agent roleplay. It is not necessarily pre-written dialogue.
+### NPCs are not items
+
+The engine stores **characters** and **objects** separately:
+
+| | Items | NPCs |
+|---|---|---|
+| Table | `items` | `npcs` |
+| Context field | `visible_items` | `visible_npcs` |
+| Patch op | `add_item` | **`add_npc`** |
+| World seed key | `"items"` | `"npcs"` |
+| Dialogue (`talk` / `ask`) | No | Yes |
+
+**Common mistake:** patching a bartender with `add_item` and `"npc": true` in metadata. The character may appear in the room description via `visible_items`, but `talk to bartender` and `ask bartender about …` will fail because dialogue only queries the `npcs` table.
+
+**Fix:** apply an `add_npc` patch (or re-import a seed with an `"npcs"` block). Remove or repurpose any mistaken item row if needed.
+
+### Adding an NPC with `add_npc`
+
+```bash
+ta --world <id> apply-patch examples/npc_patch_example.json
+```
+
+Patch op shape:
+
+```json
+{
+  "op": "add_npc",
+  "npc_id": "augmented_bartender",
+  "payload": {
+    "name": "augmented bartender",
+    "description": "Chrome joints and a tired smile.",
+    "location": "hall",
+    "status": "committed",
+    "state": { "trust": 0 },
+    "metadata": {
+      "voice": "Dry, clipped.",
+      "role": "Gatekeeper of rumours.",
+      "wants": "Payment in stories.",
+      "wont": "Name names without reason.",
+      "topics": {
+        "data_chip": {
+          "requires": [],
+          "facts": ["The chip was last seen near the loading dock."],
+          "effects": {
+            "set_flags": {},
+            "set_state": { "trust": 1 }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Required fields: `npc_id`, `payload.name`, `payload.description`.
+
+Optional: `location` (room id), `status` (default `committed`), `state`, `metadata` (brief + `topics`).
+
+Validation: `npc_id` must be unique; `location` must exist (including rooms added earlier in the same patch).
+
+**After patching, verify:**
+
+```bash
+ta --world <id> context --json
+ta --world <id> play "talk to bartender" --json
+```
+
+Check that:
+
+- the NPC appears in `visible_npcs` (not only `visible_items`)
+- `play --json` returns `requires_agent: true` and an `npc_talk.brief` for free talk
+- topic talk returns `npc_talk.facts` when the topic matches
+
+Reference seed: `examples/world_seed.json` (`possible_cat` under `"npcs"`).
 
 ### Free talk
 
@@ -590,7 +667,17 @@ NPC metadata supplies a brief for agent roleplay. It is not necessarily pre-writ
 ta --world <id> play "talk to <npc>"
 ```
 
-The engine logs the attempt and returns a brief. The agent may perform dialogue, but should not invent lasting facts unless they become drafts, patches, flags, or state changes.
+Also: `speak to …`, `talk … about …` (unknown topic), `ask <npc> about <unknown>`.
+
+The engine logs the attempt and returns a brief. The agent performs dialogue, but should not invent lasting facts unless they become drafts, patches, flags, or state changes.
+
+On success, `play --json` includes:
+
+- `requires_agent: true`
+- `npc_talk.brief` — `voice`, `role`, `wants`, `wont`, current `state`
+- `npc_talk.topic: null` for free talk
+
+The engine message is mechanical (e.g. “You address the possible cat.”) — **not** the character’s spoken lines.
 
 ### Topic dialogue
 
@@ -598,14 +685,31 @@ The engine logs the attempt and returns a brief. The agent may perform dialogue,
 ta --world <id> play "ask <npc> about <topic>"
 ```
 
+Also: `talk to <npc> about <topic>`, `ask about <topic> from <npc>`.
+
+Topics live in `metadata.topics.<key>`. Topic keys are matched flexibly (`data chip` → `data_chip`).
+
 Topics may include:
 
-- `requires`
-- `facts`
-- `effects`
-- `set_state` per save
+- `requires` — flag/inventory gates (same DSL as exits)
+- `facts` — canon lines the agent must respect when narrating
+- `effects` — `set_flags`, `discover_rooms`, `reveal_exits`, etc.
+- `set_state` inside `effects` — per-save NPC state overlay
 
 When the engine returns canon facts, use them. Do not contradict them.
+
+On success, `play --json` includes `npc_talk.facts` and any `state_changes` from topic effects.
+
+### NPC troubleshooting
+
+| Symptom | Likely cause | Action |
+|---|---|---|
+| `You don't see '…' here.` on talk/ask | NPC not in `npcs` table or wrong room | `add_npc` patch; check `location` |
+| Character in `visible_items` only | Created with `add_item` | Replace with `add_npc` |
+| `doesn't seem to follow that topic` | Topic key missing from metadata | Add topic under `metadata.topics` (author context) |
+| `isn't willing to discuss that yet` | Topic `requires` not met | Satisfy flags/inventory first |
+| Talk returns action label, no `npc_talk` | Input matched a room **interaction** action instead | Use `talk to …` / `--json`; avoid duplicate interaction labels |
+| Free talk “does nothing” | Expected pre-written lines | Engine delegates to agent via `requires_agent`; narrate from `npc_talk.brief` |
 
 ---
 

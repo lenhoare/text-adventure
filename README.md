@@ -38,6 +38,7 @@ ta-doctor              # standalone wrapper (same command)
 | **example seed** | `examples/world_seed.json` on disk |
 | **worlds** | Worlds already loaded in the DB |
 | **sessions** | Active session per world (save name, turn, room) |
+| **npc-as-item** | Items with `npc: true` or dialogue `topics` but no matching `npcs` row |
 
 Top-level flags in `--json` output:
 
@@ -172,12 +173,51 @@ Committing a room draft can update an existing **blank exit** in place (aliases 
 
 ### Patches
 
-Direct validated mutations: `add_room`, `add_exit`, `update_exit`, `add_item`, `set_flag`, `batch_add_region`, and more.
+Direct validated mutations: `add_room`, `add_exit`, `update_exit`, `add_item`, **`add_npc`**, `set_flag`, `batch_add_region`, and more.
 
 ```bash
 ta --world house_by_sea apply-patch examples/commit_patch_example.json
 ta --world house_by_sea apply-patch examples/hidden_region_patch.json
+ta --world house_by_sea apply-patch examples/npc_patch_example.json
 ```
+
+### NPCs vs items
+
+**Characters are not items.** Dialogue only works for entities in the **`npcs`** table. They appear in `visible_npcs` in context — not in `visible_items`.
+
+| Entity | Table | Patch op | Dialogue |
+|---|---|---|---|
+| Object (key, portrait, machine) | `items` | `add_item` | No |
+| Character (bartender, cat, ferryman) | `npcs` | **`add_npc`** | Yes |
+
+Do **not** use `add_item` with `"npc": true` in metadata — the engine will not treat it as a talk target. Import seeds put NPCs under `"npcs": { ... }` in JSON (see `examples/world_seed.json`).
+
+**`add_npc` patch shape:**
+
+```json
+{
+  "op": "add_npc",
+  "npc_id": "augmented_bartender",
+  "payload": {
+    "name": "augmented bartender",
+    "description": "Chrome joints and a tired smile.",
+    "location": "hall",
+    "metadata": {
+      "voice": "Dry, clipped.",
+      "role": "Gatekeeper of rumours.",
+      "topics": {
+        "data_chip": {
+          "facts": ["The chip was last seen near the loading dock."]
+        }
+      }
+    }
+  }
+}
+```
+
+Required: `npc_id`, `payload.name`, `payload.description`. Optional: `location`, `status`, `state`, `metadata` (including `topics`).
+
+After patching, verify with `ta context --json` — the NPC should appear under `visible_npcs`, then test `talk to …` / `ask … about …` with `--json` and check for `npc_talk`.
 
 ### Hidden regions
 
@@ -202,15 +242,18 @@ Puzzle rules on items (tool must be in inventory):
 
 ### NPC dialogue
 
-NPC `metadata` supplies a **brief** (voice, role, wants, wont) for agent roleplay — not pre-written lines.
+NPCs live in the **`npcs`** table (via world seed import or **`add_npc`** patch — not `add_item`). Their `metadata` supplies a **brief** (voice, role, wants, wont) for agent roleplay — not pre-written lines.
 
 - **Free talk** — engine logs attempt, returns brief; agent performs dialogue.
 - **Topics** — `metadata.topics.<name>` with optional `requires`, `facts`, and `effects` (including `set_state` per save).
 
 ```bash
+ta --world house_by_sea apply-patch examples/npc_patch_example.json
 ta --world house_by_sea play "talk to cat"
 ta --world house_by_sea play "ask cat about pantry"
 ```
+
+Use `play --json` and look for `requires_agent: true` and `npc_talk` — the engine does not emit dialogue lines.
 
 ---
 
@@ -247,7 +290,7 @@ Decks and tables are defined in `world.metadata.decks` and `world.metadata.table
 | `project_spec.md` | Design spec |
 | `sql/schema.sql` | Reference schema (canonical copy in `src/engine/schema.sql`) |
 | `src/engine/` | Python engine package |
-| `examples/` | Seed world, drafts, patches, hidden region, save, and event examples |
+| `examples/` | Seed world, drafts, patches, NPC patch, hidden region, save, and event examples |
 | `tests/` | pytest suite |
 
 ---

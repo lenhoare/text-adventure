@@ -1,0 +1,38 @@
+{
+  "patch": {
+    "id": "patch_augmented_bartender_001",
+    "world_id": "house_by_sea",
+    "author": "llm",
+    "ops": [
+      {
+        "op": "add_npc",
+        "npc_id": "augmented_bartender",
+        "payload": {
+          "name": "augmented bartender",
+          "description": "Chrome joints and a tired smile behind the counter.",
+          "location": "hall",
+          "status": "committed",
+          "state": {
+            "trust": 0
+          },
+          "metadata": {
+            "voice": "Dry, clipped, loyal to the house tab.",
+            "role": "Gatekeeper of rumours.",
+            "wants": "Payment in stories, not credits.",
+            "wont": "Name names without a good reason.",
+            "topics": {
+              "data_chip": {
+                "facts": [
+                  "The chip was last seen near the loading dock."
+                ],
+                "effects": {
+                  "set_state": { "trust": 1 }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

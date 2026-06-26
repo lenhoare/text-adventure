@@ -5,9 +5,9 @@ from typing import Any
 
 from engine.db import json_dumps, json_loads
 from engine.events import log_event
-from engine.models import ActionSeed, Coords, ItemSeed, RoomSeed
+from engine.models import ActionSeed, Coords, ItemSeed, NpcSeed, RoomSeed
 from engine.session import get_active_session, persist_session
-from engine.world_io import insert_action, insert_item, insert_room
+from engine.world_io import insert_action, insert_item, insert_npc, insert_room
 
 
 class PatchError(Exception):
@@ -97,6 +97,7 @@ def validate_patch(
     errors: list[str] = []
     pending_rooms: set[str] = set()
     pending_items: set[str] = set()
+    pending_npcs: set[str] = set()
 
     for op in ops:
         name = op.get("op")
@@ -111,6 +112,10 @@ def validate_patch(
         elif name == "add_item":
             errors.extend(
                 _validate_add_item(conn, world_id, op, pending_items, pending_rooms)
+            )
+        elif name == "add_npc":
+            errors.extend(
+                _validate_add_npc(conn, world_id, op, pending_npcs, pending_rooms)
             )
         elif name == "move_item":
             errors.extend(_validate_move_item(conn, world_id, op, pending_rooms))
@@ -291,6 +296,37 @@ def _validate_add_item(
     return errors
 
 
+def _validate_add_npc(
+    conn: sqlite3.Connection,
+    world_id: str,
+    op: dict[str, Any],
+    pending: set[str],
+    pending_rooms: set[str],
+) -> list[str]:
+    errors: list[str] = []
+    npc_id = op.get("npc_id")
+    payload = op.get("payload", {})
+    if not npc_id:
+        return ["add_npc requires npc_id"]
+    if npc_id in pending:
+        errors.append(f"npc id {npc_id!r} duplicated in patch")
+        return errors
+    row = conn.execute(
+        "SELECT 1 FROM npcs WHERE world_id = ? AND id = ?",
+        (world_id, npc_id),
+    ).fetchone()
+    if row:
+        errors.append(f"npc id {npc_id!r} already exists")
+    for field in ("name", "description"):
+        if field not in payload:
+            errors.append(f"add_npc payload missing {field}")
+    location = payload.get("location")
+    if location and not _room_exists(conn, world_id, location, pending_rooms):
+        errors.append(f"add_npc location room {location!r} does not exist")
+    pending.add(npc_id)
+    return errors
+
+
 def _validate_move_item(
     conn: sqlite3.Connection,
     world_id: str,
@@ -380,6 +416,8 @@ def _apply_op(
         _apply_update_exit(conn, world_id, op)
     elif name == "add_item":
         _apply_add_item(conn, world_id, op)
+    elif name == "add_npc":
+        _apply_add_npc(conn, world_id, op)
     elif name == "move_item":
         _apply_move_item(conn, world_id, op)
     elif name == "set_flag":
@@ -555,6 +593,20 @@ def _apply_add_item(conn: sqlite3.Connection, world_id: str, op: dict[str, Any])
         metadata=payload.get("metadata", {}),
     )
     insert_item(conn, world_id, item)
+
+
+def _apply_add_npc(conn: sqlite3.Connection, world_id: str, op: dict[str, Any]) -> None:
+    payload = op["payload"]
+    npc = NpcSeed(
+        id=op["npc_id"],
+        name=payload["name"],
+        description=payload["description"],
+        location=payload.get("location"),
+        status=payload.get("status", "committed"),
+        state=payload.get("state", {}),
+        metadata=payload.get("metadata", {}),
+    )
+    insert_npc(conn, world_id, npc)
 
 
 def _apply_move_item(

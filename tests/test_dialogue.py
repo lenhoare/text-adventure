@@ -7,9 +7,11 @@ from pathlib import Path
 import pytest
 
 from engine.actions import play
+from engine.context import build_agent_context
 from engine.dialogue import parse_talk_command
+from engine.patches import PatchValidationError, apply_patch
 from engine.session import create_session, get_active_session
-from engine.world_io import import_world
+from engine.world_io import export_world, import_world
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 SEED_PATH = EXAMPLES / "world_seed.json"
@@ -87,3 +89,117 @@ def test_free_topic_always_available(conn, world):
     assert result.npc_talk["topic"] == "house"
     save = get_active_session(conn, world)
     assert save.snapshot.npc_state["possible_cat"]["seen_clearly"] is True
+
+
+def test_add_npc_patch_enables_dialogue(conn, world):
+    result = apply_patch(
+        conn,
+        {
+            "patch": {
+                "id": "patch_bartender_001",
+                "world_id": world,
+                "ops": [
+                    {
+                        "op": "add_npc",
+                        "npc_id": "augmented_bartender",
+                        "payload": {
+                            "name": "augmented bartender",
+                            "description": "Chrome joints and a tired smile.",
+                            "location": "hall",
+                            "metadata": {
+                                "voice": "Dry, clipped, loyal to the house tab.",
+                                "role": "Gatekeeper of rumours.",
+                                "topics": {
+                                    "data_chip": {
+                                        "facts": [
+                                            "The chip was last seen near the loading dock."
+                                        ]
+                                    }
+                                },
+                            },
+                        },
+                    }
+                ],
+            }
+        },
+    )
+    assert result["ok"]
+    assert "add_npc" in result["ops_applied"]
+
+    exported = export_world(conn, world)
+    assert "augmented_bartender" in exported["npcs"]
+
+    save = get_active_session(conn, world)
+    context = build_agent_context(conn, world)
+    assert any(npc["id"] == "augmented_bartender" for npc in context.visible_npcs)
+
+    talk = play(conn, save, "talk to bartender")
+    assert talk.ok
+    assert talk.requires_agent
+    assert talk.npc_talk["brief"]["voice"]
+
+    topic = play(conn, get_active_session(conn, world), "ask bartender about data chip")
+    assert topic.ok
+    assert topic.npc_talk["facts"] == [
+        "The chip was last seen near the loading dock."
+    ]
+
+
+def test_add_npc_rejects_missing_room(conn, world):
+    with pytest.raises(PatchValidationError) as exc:
+        apply_patch(
+            conn,
+            {
+                "patch": {
+                    "id": "patch_bad_npc",
+                    "world_id": world,
+                    "ops": [
+                        {
+                            "op": "add_npc",
+                            "npc_id": "ghost",
+                            "payload": {
+                                "name": "ghost",
+                                "description": "Nowhere.",
+                                "location": "missing_room",
+                            },
+                        }
+                    ],
+                }
+            },
+        )
+    assert "missing_room" in str(exc.value)
+
+
+def test_add_npc_allows_room_added_in_same_patch(conn, world):
+    apply_patch(
+        conn,
+        {
+            "patch": {
+                "id": "patch_room_and_npc",
+                "world_id": world,
+                "ops": [
+                    {
+                        "op": "add_room",
+                        "room_id": "back_alley",
+                        "payload": {
+                            "name": "Back Alley",
+                            "region": "city",
+                            "status": "committed",
+                            "description": "Rain-slick bricks.",
+                        },
+                    },
+                    {
+                        "op": "add_npc",
+                        "npc_id": "fixer",
+                        "payload": {
+                            "name": "fixer",
+                            "description": "Watches from the shadows.",
+                            "location": "back_alley",
+                        },
+                    },
+                ],
+            }
+        },
+    )
+    exported = export_world(conn, world)
+    assert exported["npcs"]["fixer"]["location"] == "back_alley"

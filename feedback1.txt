@@ -1,0 +1,81 @@
+ I walked through it step‑by‑step and the engine held up.
+
+Here's what worked perfectly:
+- Created a new cyberpunk world (
+cyberpunk_alley
+)
+- Drafted “The Rusty Bolt” from your mood‑board (pink neon, leather, fishnets, bondage)
+- Committed the draft → room added, blank exit became real
+- Patched in the augmented bartender as an
+item
+with NPC metadata
+- Movement, inventory, flags, events all logged correctly
+
+Here's what didn't work as expected (the rough edges):
+
+1. NPC dialogue system
+The bartender is in the world as an
+item
+with
+"npc": true
+and topic metadata, but:
+-
+"talk to bartender"
+returns
+"Talk to the augmented bartender."
+but doesn't initiate dialogue.
+-
+"ask bartender about data chip"
+fails with
+"You don't see 'bartender' here."
+
+- The engine’s
+visible_npcs
+list remains empty; NPCs appear in
+visible_items
+.
+- Patch operation
+"add_npc"
+is not recognized—only
+"add_item"
+,
+"add_room"
+,
+"add_exit"
+, etc.
+
+Likely cause: NPCs might be intended to live in a separate
+npcs
+table (as shown in
+world_seed.json
+), but the patch layer doesn’t yet have an
+add_npc
+op. Dialogue triggers might only fire for entities in the
+npcs
+table, not for items with
+npc=true
+.
+
+2. Topic‑based conversation
+Even if the bartender were a proper NPC, the
+"ask <npc> about <topic>"
+syntax might need the topic to be predefined in the NPC’s metadata
+topics
+(which it is). The engine didn't match the input.
+
+3. Hidden‑exit workflow for pantry
+In the
+house_by_sea
+world, the pantry is unlocked (
+pantry_unlocked: true
+) but no exit appears—probably because the pantry room hasn't been authored yet. That's by design (blank exit), but worth noting.
+
+---
+
+What’s rock‑solid
+- SQLite persistence
+- Draft/commit pipeline
+- Blank‑exit → draft → commit flow
+- Context‑aware spoiler filtering
+- Event logging
+- The “engine remembers, agent imagines” separation
